@@ -49,10 +49,10 @@ A library URL loads every skill in the repo. A tree URL that points at one skill
 
 ## Download
 
-Every push to `main` publishes a macOS build on [GitHub Releases](https://github.com/jbooker/SkillsManager/releases/latest).
+Every push to `main` publishes a macOS build on [GitHub Releases](https://github.com/jbooker/SkillManager/releases/latest).
 
-- [Skill-Manager-macos.dmg](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-macos.dmg) — open it and drag **Skill Manager** into **Applications**
-- [Skill-Manager-macos.zip](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-macos.zip) — unzip, then drag the app into **Applications** if you want it to stay
+- [Skill-Manager-macos.dmg](https://github.com/jbooker/SkillManager/releases/latest/download/Skill-Manager-macos.dmg) — open it and drag **Skill Manager** into **Applications**
+- [Skill-Manager-macos.zip](https://github.com/jbooker/SkillManager/releases/latest/download/Skill-Manager-macos.zip) — unzip, then drag the app into **Applications** if you want it to stay
 
 There is no separate installer. A Mac app is already a self-contained `.app` bundle; the disk image is just a convenient wrapper with an Applications shortcut.
 
