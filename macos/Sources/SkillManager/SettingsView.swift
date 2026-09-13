@@ -17,6 +17,12 @@ struct SettingsView: View {
                 Text("Dark uses macOS Dark Aqua for the window, sidebar, and menus. System follows Settings → Appearance.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Section {
+                    LabeledContent("Version", value: AppInfo.displayVersion)
+                } header: {
+                    Text("Skill Manager")
+                }
             }
             .formStyle(.grouped)
             .padding(8)
