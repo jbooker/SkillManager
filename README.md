@@ -49,12 +49,11 @@ A library URL loads every skill in the repo. A tree URL that points at one skill
 
 ## Download
 
-Every push to `main` publishes a macOS build on [GitHub Releases](https://github.com/jbooker/SkillManager/releases/latest).
+Every push to `main` publishes a versioned disk image on [GitHub Releases](https://github.com/jbooker/SkillsManager/releases/latest).
 
-- [Skill-Manager-macos.dmg](https://github.com/jbooker/SkillManager/releases/latest/download/Skill-Manager-macos.dmg) — open it and drag **Skill Manager** into **Applications**
-- [Skill-Manager-macos.zip](https://github.com/jbooker/SkillManager/releases/latest/download/Skill-Manager-macos.zip) — unzip, then drag the app into **Applications** if you want it to stay
+[Skill-Manager-0.1.0.dmg](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-0.1.0.dmg) — open it and drag **Skill Manager** into **Applications**.
 
-There is no separate installer. A Mac app is already a self-contained `.app` bundle; the disk image is just a convenient wrapper with an Applications shortcut.
+There is no separate installer. A Mac app is already a self-contained `.app` bundle; the disk image is a wrapper with an Applications shortcut. The version comes from `VERSION` and is stamped into the app and the `.dmg` filename.
 
 The first launch, right-click the app and choose **Open**. Gatekeeper warns because the build is ad-hoc signed, not Apple-notarized. After that, double-click works as usual.
 
@@ -70,13 +69,13 @@ swift run --package-path macos SkillManager
 
 That launches **Skill Manager** as a native SwiftUI app: sidebar by harness, searchable table, coverage matrix, inspector with link / unlink / archive / delete / refresh, **Load from GitHub** for libraries, and Settings for extra scan roots.
 
-To build a `.app`, zip, and disk image locally:
+To build a `.app` and disk image locally:
 
 ```bash
 bash scripts/package-macos.sh
 ```
 
-Outputs land in `release/`. Open `macos/Package.swift` in Xcode if you want to run or iterate from there.
+Outputs land in `release/`, including `Skill-Manager-<version>.dmg`. Open `macos/Package.swift` in Xcode if you want to run or iterate from there.
 
 ## Tests
 

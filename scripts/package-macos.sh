@@ -16,6 +16,20 @@ for arg in "$@"; do
   esac
 done
 
+version="${APP_VERSION:-$(tr -d '[:space:]' < "$root/VERSION")}"
+if [[ -z "$version" ]]; then
+  echo "VERSION is empty." >&2
+  exit 1
+fi
+
+if [[ -n "${APP_BUILD:-}" ]]; then
+  build="$APP_BUILD"
+elif git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  build="$(git -C "$root" rev-list --count HEAD)"
+else
+  build="1"
+fi
+
 if [[ "$skip_tests" != true ]]; then
   swift test --package-path macos
 fi
@@ -33,11 +47,10 @@ if [[ ! -x "$arm_bin" || ! -x "$x86_bin" ]]; then
 fi
 
 app="$root/release/Skill Manager.app"
-zip_path="$root/release/Skill-Manager-macos.zip"
-dmg_path="$root/release/Skill-Manager-macos.dmg"
+dmg_path="$root/release/Skill-Manager-${version}.dmg"
 
 rm -rf "$app"
-rm -f "$zip_path" "$dmg_path"
+rm -f "$root"/release/*.dmg "$root"/release/*.zip
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 
 lipo -create -output "$app/Contents/MacOS/SkillManager" "$arm_bin" "$x86_bin"
@@ -45,6 +58,8 @@ chmod +x "$app/Contents/MacOS/SkillManager"
 lipo -info "$app/Contents/MacOS/SkillManager"
 
 cp "$root/macos/Info.plist" "$app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $version" "$app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build" "$app/Contents/Info.plist"
 printf 'APPL????' > "$app/Contents/PkgInfo"
 
 if [[ -f "$root/build/icon.png" ]]; then
@@ -63,14 +78,12 @@ fi
 
 codesign --force --deep -s - "$app" >/dev/null
 
-ditto -c -k --keepParent "$app" "$zip_path"
-
 stage="$(mktemp -d)"
 cp -R "$app" "$stage/"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "Skill Manager" -srcfolder "$stage" -ov -format UDZO "$dmg_path"
+hdiutil create -volname "Skill Manager $version" -srcfolder "$stage" -ov -format UDZO "$dmg_path"
 rm -rf "$stage"
 
+echo "Version $version ($build)"
 echo "Built $app"
-echo "Zipped $zip_path"
 echo "Disk image $dmg_path"
