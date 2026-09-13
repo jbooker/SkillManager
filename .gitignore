@@ -1,0 +1,5 @@
+release
+*.log
+.DS_Store
+macos/.build
+macos/.swiftpm
