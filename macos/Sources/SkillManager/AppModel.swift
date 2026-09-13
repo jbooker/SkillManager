@@ -88,6 +88,7 @@ final class AppModel {
     var originBusy: Set<String> = []
     var confirmDeleteName: String?
     var showLoadLibrary = false
+    @ObservationIgnored private var aboutWindowController: NSWindowController?
     var libraryURL = ""
     var libraryTarget: LoadTarget = .everywhere
     var librarySession: LibrarySession?
@@ -277,6 +278,37 @@ final class AppModel {
             try? ConfigStore.save(homeDir: homeDir, config: cfg)
         }
         await rescan()
+    }
+
+    func presentAbout() {
+        NSApp.activate(ignoringOtherApps: true)
+        let hosting = NSHostingController(
+            rootView: AboutView()
+                .preferredColorScheme(appearance.colorScheme)
+        )
+        if let window = aboutWindowController?.window {
+            window.contentViewController = hosting
+            sizeAboutWindow(window, hosting: hosting)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(contentViewController: hosting)
+        window.title = "About Skill Manager"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        sizeAboutWindow(window, hosting: hosting)
+        window.center()
+        let controller = NSWindowController(window: window)
+        aboutWindowController = controller
+        controller.showWindow(nil)
+    }
+
+    private func sizeAboutWindow(_ window: NSWindow, hosting: NSHostingController<some View>) {
+        hosting.view.layoutSubtreeIfNeeded()
+        var size = hosting.view.fittingSize
+        if size.width < 420 { size.width = 420 }
+        if size.height < 220 { size.height = 220 }
+        window.setContentSize(size)
     }
 
     func presentLoadLibrary() {

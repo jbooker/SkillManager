@@ -55,7 +55,7 @@ Every push to `main` publishes a versioned disk image on [GitHub Releases](https
 
 There is no separate installer. A Mac app is already a self-contained `.app` bundle; the disk image is a wrapper with an Applications shortcut. The version comes from `VERSION` and is stamped into the app and the `.dmg` filename.
 
-The first launch, right-click the app and choose **Open**. Gatekeeper warns because the build is ad-hoc signed, not Apple-notarized. After that, double-click works as usual.
+The first launch, Gatekeeper blocks the app because this build is not Apple-notarized. Click **Done** (not Move to Trash). Open **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway** next to Skill Manager. Confirm **Open**. After that, double-click works as usual.
 
 Requires macOS 14+ on Intel or Apple silicon.
 

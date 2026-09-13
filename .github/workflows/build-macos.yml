@@ -57,7 +57,7 @@ jobs:
             echo
             echo "1. Download **Skill-Manager-${VERSION}.dmg**."
             echo "2. Open the disk image and drag **Skill Manager** into **Applications**."
-            echo "3. The first time you launch it, right-click the app and choose **Open**. Apple Gatekeeper warns because this build is not notarized."
+            echo "3. The first launch, Gatekeeper blocks the app. Click **Done**, then **System Settings → Privacy & Security → Open Anyway**. This build is not notarized."
             echo
             echo "Runs on Intel and Apple silicon, macOS 14 or later."
           } > "$RUNNER_TEMP/release-notes.md"

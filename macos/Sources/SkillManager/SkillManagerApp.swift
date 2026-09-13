@@ -1,21 +1,6 @@
 import AppKit
 import SwiftUI
 
-enum AppInfo {
-    static var displayVersion: String {
-        let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        switch (short, build) {
-        case let (version?, build?) where version != build:
-            return "\(version) (\(build))"
-        case let (version?, _):
-            return version
-        default:
-            return "Development"
-        }
-    }
-}
-
 @main
 struct SkillManagerApp: App {
     @State private var model = AppModel()
@@ -40,6 +25,11 @@ struct SkillManagerApp: App {
         .defaultSize(width: 1280, height: 840)
         .windowToolbarStyle(.unified)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Skill Manager") {
+                    model.presentAbout()
+                }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Load from GitHub…") {
                     model.presentLoadLibrary()
@@ -64,6 +54,11 @@ struct SkillManagerApp: App {
                     ForEach(AppearanceMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
+                }
+            }
+            CommandGroup(replacing: .help) {
+                Button("About Skill Manager") {
+                    model.presentAbout()
                 }
             }
         }
