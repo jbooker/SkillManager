@@ -1,3 +1,5 @@
+<img width="1802" height="1145" alt="image" src="https://github.com/user-attachments/assets/80d950e4-2bbd-4ac9-b146-7593fee1a49e" />
+
 # Skill Manager
 
 A native macOS app for [Agent Skills](https://agentskills.io) (`SKILL.md` folders) across **Claude Code**, **Cursor**, **Grok**, **Codex**, **Gemini CLI**, and **OpenCode**.
