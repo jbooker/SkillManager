@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import SkillManagerCore
 
@@ -14,7 +15,7 @@ struct RootView: View {
         }
         .inspector(isPresented: $model.showInspector) {
             InspectorView()
-                .inspectorColumnWidth(min: 280, ideal: 360, max: 520)
+                .inspectorColumnWidth(min: 300, ideal: 400, max: 560)
         }
         .sheet(isPresented: $model.showLoadLibrary, onDismiss: {
             model.discardLibrarySession()
@@ -56,6 +57,18 @@ struct SidebarView: View {
     var body: some View {
         @Bindable var model = model
         List(selection: $model.filter) {
+            Section("Scope") {
+                ForEach(ScopeCatalog.sidebarScopes, id: \.self) { scope in
+                    sidebarRow(
+                        ScopeCatalog.label(scope),
+                        count: model.scopeCount(scope),
+                        systemImage: ScopeCatalog.icon(scope),
+                        tint: ScopeCatalog.color(scope)
+                    )
+                    .tag(SidebarFilter.scope(scope))
+                }
+            }
+
             Section("Catalog") {
                 sidebarRow("All skills", count: model.inventory?.uniqueCount ?? 0, systemImage: "square.grid.2x2")
                     .tag(SidebarFilter.all)
@@ -105,7 +118,7 @@ struct SidebarView: View {
         }
     }
 
-    private func sidebarRow(_ title: String, count: Int, systemImage: String) -> some View {
+    private func sidebarRow(_ title: String, count: Int, systemImage: String, tint: Color? = nil) -> some View {
         Label {
             HStack {
                 Text(title)
@@ -116,6 +129,7 @@ struct SidebarView: View {
             }
         } icon: {
             Image(systemName: systemImage)
+                .foregroundStyle(tint ?? Color.secondary)
         }
     }
 }
@@ -142,22 +156,14 @@ struct CatalogView: View {
         .navigationTitle(title)
         .navigationSubtitle("\(model.visibleGroups.count) shown")
         .toolbarTitleDisplayMode(.inline)
-        .searchable(text: $model.query, placement: .toolbar, prompt: "Search name, description, path…")
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .principal) {
                 Picker("View", selection: $model.catalogView) {
                     Text("List").tag(CatalogMode.list)
                     Text("Matrix").tag(CatalogMode.matrix)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 160)
-                Menu("Filters", systemImage: "line.3.horizontal.decrease.circle") {
-                    Toggle("Issues", isOn: $model.issuesOnly)
-                    Toggle("Not in shared global", isOn: $model.unshared)
-                    if case .harness = model.filter {
-                        Toggle("Hidden from this harness", isOn: $model.gaps)
-                    }
-                }
                 Button {
                     model.presentLoadLibrary()
                 } label: {
@@ -178,6 +184,8 @@ struct CatalogView: View {
                 }
                 .disabled(model.isScanning)
                 .help("Rescan skill folders")
+                CatalogSearchField(text: $model.query, prompt: "Search skills")
+                    .frame(width: 180)
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -198,6 +206,8 @@ struct CatalogView: View {
         case .all: return "All skills"
         case .shared: return "Shared global"
         case .archived: return "Archived"
+        case .scope(let scope):
+            return ScopeCatalog.label(scope)
         case .harness(let id):
             return Harnesses.all.first { $0.id == id }?.name ?? id.rawValue
         }
@@ -209,8 +219,8 @@ struct SkillCatalogList: View {
 
     var body: some View {
         @Bindable var model = model
-        List(selection: $model.selectedSkills) {
-            if model.catalogView == .matrix {
+        if model.catalogView == .matrix {
+            List(selection: $model.selectedSkills) {
                 Section {
                     ForEach(model.visibleGroups) { group in
                         MatrixRow(group: group)
@@ -230,76 +240,17 @@ struct SkillCatalogList: View {
                     .foregroundStyle(.secondary)
                     .textCase(nil)
                 }
-            } else {
-                ForEach(model.visibleGroups) { group in
-                    SkillRow(group: group)
-                        .tag(group.id)
-                        .contextMenu { SkillContextMenu(group: group) }
-                }
             }
+            .listStyle(.inset)
+        } else {
+            CatalogTable()
         }
-        .listStyle(.inset)
     }
 
     private func matrixHeader(_ title: String) -> some View {
         Text(title)
             .frame(width: 36)
             .multilineTextAlignment(.center)
-    }
-}
-
-struct SkillRow: View {
-    let group: SkillGroup
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(group.name)
-                    .font(.headline)
-                Text(group.copies.first?.homeRelative ?? "")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                if let origin = group.copies.first?.origin, origin.kind != .local {
-                    Text(origin.label)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
-                if !group.description.isEmpty {
-                    Text(group.description)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            Spacer(minLength: 12)
-            VStack(alignment: .trailing, spacing: 4) {
-                CoverageGlyph(present: Set(group.harnesses))
-                HStack(spacing: 6) {
-                    if group.inShared {
-                        Text("shared")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(.quaternary, in: Capsule())
-                    }
-                    if group.archivedOnly {
-                        Text("archived")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(.quaternary, in: Capsule())
-                    }
-                    if !group.issues.isEmpty {
-                        Text("\(group.issues.count)")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
-                }
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 
@@ -316,36 +267,34 @@ struct SkillContextMenu: View {
                 model.confirmDeleteName = group.name
             }
         } else {
-            if group.copies.contains(where: { $0.location.id == "agents-user" }) {
-                Button("Unload from shared global") {
-                    Task { await model.run { SkillActions.unloadFromShared(skillName: group.name, homeDir: model.homeDir) } }
-                }
-            }
-            ForEach(HarnessID.allCases) { id in
-                if group.copies.contains(where: { $0.location.id == userLocationId(id) }) {
-                    Button("Unload from \(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)") {
-                        Task { await model.run { SkillActions.unloadFromHarness(skillName: group.name, homeDir: model.homeDir, harness: id) } }
+            ForEach(UserFolderTarget.allCases) { target in
+                if let existing = group.copies.first(where: { $0.location.id == target.locationId }) {
+                    Button("Unlink from \(target.title)") {
+                        Task { await model.run { SkillActions.unloadCopy(targetPath: existing.skillDir, homeDir: model.homeDir) } }
+                    }
+                } else if group.managedPresence(for: target) == nil, let path = group.activeCopies.first?.skillDir {
+                    Button("Link to \(target.title)") {
+                        Task {
+                            await model.run {
+                                if let harness = target.harness {
+                                    SkillActions.linkToHarness(skillDir: path, homeDir: model.homeDir, harness: harness)
+                                } else {
+                                    SkillActions.promoteToShared(skillDir: path, homeDir: model.homeDir)
+                                }
+                            }
+                        }
                     }
                 }
             }
-            Button("Archive user copies") {
-                Task { await model.run { SkillActions.archiveUserCopies(skillName: group.name, homeDir: model.homeDir) } }
+            if group.hasUserCopy {
+                Button("Archive user copies") {
+                    Task { await model.run { SkillActions.archiveUserCopies(skillName: group.name, homeDir: model.homeDir) } }
+                }
+                Divider()
+                Button("Delete user copies…", role: .destructive) {
+                    model.confirmDeleteName = group.name
+                }
             }
-            Divider()
-            Button("Delete user copies…", role: .destructive) {
-                model.confirmDeleteName = group.name
-            }
-        }
-    }
-
-    private func userLocationId(_ harness: HarnessID) -> String {
-        switch harness {
-        case .claude: return "claude-user"
-        case .cursor: return "cursor-user"
-        case .grok: return "grok-user"
-        case .codex: return "codex-user"
-        case .gemini: return "gemini-user"
-        case .opencode: return "opencode-user"
         }
     }
 }
@@ -382,5 +331,42 @@ struct MatrixCell: View {
             .fill(on ? Color.accentColor : Color.primary.opacity(0.18))
             .frame(width: 10, height: 10)
             .frame(maxWidth: .infinity)
+    }
+}
+
+/// Native search as a regular toolbar item. `.searchable` pins to the window’s trailing
+/// edge and sits on top of the inspector; an `NSSearchField` stays with the catalog controls.
+struct CatalogSearchField: NSViewRepresentable {
+    @Binding var text: String
+    var prompt: String
+
+    func makeNSView(context: Context) -> NSSearchField {
+        let field = NSSearchField()
+        field.delegate = context.coordinator
+        field.placeholderString = prompt
+        field.sendsSearchStringImmediately = true
+        field.sendsWholeSearchString = false
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return field
+    }
+
+    func updateNSView(_ field: NSSearchField, context: Context) {
+        context.coordinator.text = $text
+        if field.stringValue != text { field.stringValue = text }
+        if field.placeholderString != prompt { field.placeholderString = prompt }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    final class Coordinator: NSObject, NSSearchFieldDelegate {
+        var text: Binding<String>
+        init(text: Binding<String>) { self.text = text }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let field = obj.object as? NSSearchField else { return }
+            text.wrappedValue = field.stringValue
+        }
     }
 }

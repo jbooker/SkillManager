@@ -31,10 +31,11 @@ struct SkillDetail: View {
                 if group.archivedOnly {
                     archiveActions
                 } else {
-                    unloadSection
-                    archiveDeleteSection
+                    foldersSection
+                    if group.hasUserCopy {
+                        archiveDeleteSection
+                    }
                     hideSection
-                    makeAvailable
                 }
 
                 ForEach(group.copies) { copy in
@@ -80,7 +81,29 @@ struct SkillDetail: View {
             Text(group.description.isEmpty ? "No description." : group.description)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
+            HStack(spacing: 6) {
+                Text("invocation")
+                    .foregroundStyle(.tertiary)
+                Text(group.invokeLabel)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+            if group.usage.sessionCount > 0 {
+                SessionHeatmap(usage: group.usage)
+                    .padding(.top, 4)
+            }
             CoverageGlyph(present: Set(group.harnesses), size: 10)
+            HStack(spacing: 6) {
+                ForEach(group.catalogScopes, id: \.self) { scope in
+                    ScopeBadge(scope: scope)
+                }
+            }
+            if let note = ownershipNote {
+                Text(note)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 6) {
                 if group.archivedOnly {
                     Text("Archived — no harness loads this")
@@ -90,7 +113,7 @@ struct SkillDetail: View {
                     Text("In shared global")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else {
+                } else if group.hasUserCopy {
                     Text("Not in shared global")
                         .font(.caption)
                         .foregroundStyle(.orange)
@@ -100,66 +123,82 @@ struct SkillDetail: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                ForEach(HarnessID.allCases.filter { !group.harnesses.contains($0) }) { id in
-                    Text("Hidden from \(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                if group.hasUserCopy {
+                    ForEach(HarnessID.allCases.filter { !group.harnesses.contains($0) }) { id in
+                        Text("Hidden from \(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
         }
     }
 
-    private var makeAvailable: some View {
+    private var foldersSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Make available")
+            Text("User folders")
                 .font(.headline)
-            Button("Available everywhere") {
-                guard let path = group.activeCopies.first?.skillDir else { return }
-                Task { await model.run { SkillActions.makeEverywhere(skillDir: path, homeDir: model.homeDir) } }
-            }
-            .help("Symlink into ~/.agents/skills and ~/.claude/skills")
-
-            Button("Add to shared global") {
-                guard let path = group.activeCopies.first?.skillDir else { return }
-                Task { await model.run { SkillActions.promoteToShared(skillDir: path, homeDir: model.homeDir) } }
-            }
-
-            ForEach(HarnessID.allCases) { id in
-                Button("Link to \(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)") {
-                    guard let path = group.activeCopies.first?.skillDir else { return }
-                    Task { await model.run { SkillActions.linkToHarness(skillDir: path, homeDir: model.homeDir, harness: id) } }
-                }
-            }
-        }
-    }
-
-    private var unloadSection: some View {
-        let shared = copy(withLocation: "agents-user")
-        let harnessCopies = HarnessID.allCases.compactMap { id -> (HarnessID, SkillCopy)? in
-            guard let copy = copy(withLocation: userLocationId(id)) else { return nil }
-            return (id, copy)
-        }
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Unload")
-                .font(.headline)
-            Text("Takes this skill out of a load path. Symlinks are removed. The last real user folder is archived, not deleted.")
+            Text("Each row is a folder on this Mac. Link if this skill isn’t there; unlink if it is. Cursor and the other shared-global harnesses can already load a skill from ~/.agents/skills without a per-harness copy.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if let shared {
-                Button("Unload from shared global") {
-                    unload(shared)
+            if !linkedEverywhere {
+                Button("Link everywhere") {
+                    guard let path = group.activeCopies.first?.skillDir else { return }
+                    Task { await model.run { SkillActions.makeEverywhere(skillDir: path, homeDir: model.homeDir) } }
                 }
+                .help("Symlink into ~/.agents/skills and ~/.claude/skills so every harness can load it")
             }
-            ForEach(harnessCopies, id: \.0) { id, copy in
-                Button("Unload from \(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)") {
-                    unload(copy)
+
+            ForEach(UserFolderTarget.allCases) { target in
+                folderRow(target)
+            }
+        }
+    }
+
+    private var ownershipNote: String? {
+        let managed = group.activeCopies.filter { $0.location.scope == .plugin || $0.location.scope == .builtin }
+        guard !managed.isEmpty else { return nil }
+        let pluginName = managed.compactMap(\.location.pluginName).first
+        if managed.contains(where: { $0.location.scope == .builtin }) {
+            if group.hasUserCopy {
+                return "Cursor ships a built-in copy in ~/.cursor/skills-cursor. Unlink only removes your user-folder copies; the built-in stays."
+            }
+            return "Cursor ships this as a built-in in ~/.cursor/skills-cursor. Cursor owns that folder, so it cannot be unlinked. Link it into a user folder only if you want other harnesses to load it too."
+        }
+        let plugin = pluginName.map { "the \($0) plugin" } ?? "a Cursor or Claude plugin"
+        if group.hasUserCopy {
+            return "A copy also lives in the cache for \(plugin). Unlink only removes your user-folder copies; the plugin cache stays."
+        }
+        return "This copy lives in the plugin cache from \(plugin). The plugin owns it, so it cannot be unlinked. Link it into a user folder if you want a personal copy other harnesses can load."
+    }
+
+    private var linkedEverywhere: Bool {
+        copy(withLocation: UserFolderTarget.shared.locationId) != nil
+            && copy(withLocation: UserFolderTarget.claude.locationId) != nil
+    }
+
+    private func folderRow(_ target: UserFolderTarget) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(target.title)
+                Text(target.homeRel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            if let existing = copy(withLocation: target.locationId) {
+                Button("Unlink", role: .destructive) {
+                    unlink(existing)
                 }
-            }
-            if shared != nil || !harnessCopies.isEmpty {
-                Button("Unload from all user folders") {
-                    pending = .archiveAll
+            } else if let presence = group.managedPresence(for: target) {
+                Text(presence)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Link") {
+                    link(target)
                 }
             }
         }
@@ -221,28 +260,30 @@ struct SkillDetail: View {
         group.copies.first { $0.location.id == id }
     }
 
-    private func userLocationId(_ harness: HarnessID) -> String {
-        switch harness {
-        case .claude: return "claude-user"
-        case .cursor: return "cursor-user"
-        case .grok: return "grok-user"
-        case .codex: return "codex-user"
-        case .gemini: return "gemini-user"
-        case .opencode: return "opencode-user"
+    private func link(_ target: UserFolderTarget) {
+        guard let path = group.activeCopies.first?.skillDir else { return }
+        Task {
+            await model.run {
+                if let harness = target.harness {
+                    SkillActions.linkToHarness(skillDir: path, homeDir: model.homeDir, harness: harness)
+                } else {
+                    SkillActions.promoteToShared(skillDir: path, homeDir: model.homeDir)
+                }
+            }
         }
     }
 
-    private func unload(_ copy: SkillCopy) {
+    private func unlink(_ copy: SkillCopy) {
         if copy.isSymlink {
             Task { await model.run { SkillActions.unloadCopy(targetPath: copy.skillDir, homeDir: model.homeDir) } }
         } else {
-            pending = .unload(copy)
+            pending = .unlink(copy)
         }
     }
 
     private func run(_ action: PendingAction) async {
         switch action {
-        case .unload(let copy):
+        case .unlink(let copy):
             await model.run { SkillActions.unloadCopy(targetPath: copy.skillDir, homeDir: model.homeDir) }
         case .archiveAll:
             await model.run { SkillActions.archiveUserCopies(skillName: group.name, homeDir: model.homeDir) }
@@ -255,14 +296,14 @@ struct SkillDetail: View {
 }
 
 private enum PendingAction {
-    case unload(SkillCopy)
+    case unlink(SkillCopy)
     case archiveAll
     case deleteAll
     case deleteArchive
 
     var title: String {
         switch self {
-        case .unload: return "Unload this copy?"
+        case .unlink: return "Unlink this copy?"
         case .archiveAll: return "Archive user copies?"
         case .deleteAll: return "Delete user copies?"
         case .deleteArchive: return "Delete archive?"
@@ -271,7 +312,7 @@ private enum PendingAction {
 
     var confirmLabel: String {
         switch self {
-        case .unload: return "Archive / unload"
+        case .unlink: return "Unlink"
         case .archiveAll: return "Archive"
         case .deleteAll, .deleteArchive: return "Delete"
         }
@@ -279,7 +320,7 @@ private enum PendingAction {
 
     var message: String {
         switch self {
-        case .unload:
+        case .unlink:
             return "This is a real skill folder. If it is the last user copy, it will be moved to the Skill Manager archive so harnesses stop loading it."
         case .archiveAll:
             return "Remove this skill from every user skill folder and keep a copy in ~/.config/skill-manager/archive. Plugin, built-in, and project copies stay put."
@@ -349,8 +390,20 @@ struct CopyCard: View {
                         Task { await model.run { SkillActions.restoreArchived(skillName: group.name, homeDir: model.homeDir) } }
                     }
                     Button("Delete archive", role: .destructive) { confirmDelete = true }
-                } else if copy.location.scope != .plugin && copy.location.scope != .builtin {
-                    Button(copy.isSymlink ? "Remove symlink" : "Remove from this location", role: .destructive) {
+                } else if copy.location.scope == .builtin {
+                    Text("Cursor built-in — cannot unlink")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if copy.location.scope == .plugin {
+                    Text("Plugin cache — cannot unlink")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if copy.location.scope == .project && !copy.isSymlink {
+                    Text("Project copy — edit it in the repo")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if copy.location.scope == .user || copy.isSymlink {
+                    Button("Unlink", role: .destructive) {
                         if copy.isSymlink {
                             Task { await model.run { SkillActions.unloadCopy(targetPath: copy.skillDir, homeDir: model.homeDir) } }
                         } else {
@@ -375,8 +428,8 @@ struct CopyCard: View {
                 showSourceSheet = false
             }
         }
-        .confirmationDialog(copy.location.scope == .archived ? "Delete archive?" : "Remove this copy?", isPresented: $confirmDelete) {
-            Button(copy.location.scope == .archived ? "Delete" : "Unload", role: .destructive) {
+        .confirmationDialog(copy.location.scope == .archived ? "Delete archive?" : "Unlink this copy?", isPresented: $confirmDelete) {
+            Button(copy.location.scope == .archived ? "Delete" : "Unlink", role: .destructive) {
                 Task {
                     if copy.location.scope == .archived {
                         await model.run { SkillActions.deleteCopy(targetPath: copy.skillDir, homeDir: model.homeDir) }
@@ -396,7 +449,7 @@ struct CopyCard: View {
     }
 
     private var scopeLine: String {
-        var parts = [copy.location.scope.rawValue]
+        var parts = [ScopeCatalog.label(copy.location.scope)]
         if let plugin = copy.location.pluginName { parts.append(plugin) }
         return parts.joined(separator: " · ")
     }

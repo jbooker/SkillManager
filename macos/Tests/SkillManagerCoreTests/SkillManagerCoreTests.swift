@@ -170,9 +170,21 @@ final class SkillManagerCoreTests: XCTestCase {
         let wrangler = inventory.groups.first { $0.name == "wrangler" }!
         XCTAssertEqual(wrangler.copies.first?.location.pluginName, "cloudflare")
         XCTAssertEqual(wrangler.harnesses, [.cursor])
+        XCTAssertEqual(wrangler.managedPresence(for: .cursor), "Plugin")
+        XCTAssertNil(wrangler.managedPresence(for: .claude))
+        XCTAssertFalse(wrangler.hasUserCopy)
 
         let deployWeb = inventory.groups.first { $0.name == "deploy-web" }!
         XCTAssertEqual(deployWeb.copies.first?.location.id, "cursor-project")
+        XCTAssertEqual(deployWeb.catalogScopes, [.project])
+        XCTAssertEqual(deployWeb.invokeLabel, "auto")
+
+        let envSetup = inventory.groups.first { $0.name == "env-setup" }!
+        XCTAssertEqual(envSetup.catalogScopes, [.builtin])
+        XCTAssertEqual(envSetup.managedPresence(for: .cursor), "Built-in")
+        XCTAssertNil(envSetup.managedPresence(for: .shared))
+        XCTAssertNil(envSetup.managedPresence(for: .claude))
+        XCTAssertFalse(envSetup.hasUserCopy)
 
         let toml = inventory.groups.first { $0.name == "toml-skill" }
         XCTAssertNotNil(toml)

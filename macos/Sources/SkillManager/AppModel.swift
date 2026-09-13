@@ -8,6 +8,7 @@ enum SidebarFilter: Hashable {
     case all
     case shared
     case archived
+    case scope(SkillScope)
     case harness(HarnessID)
 }
 
@@ -68,10 +69,11 @@ final class AppModel {
     var filter: SidebarFilter = .all
     var selectedSkills: Set<String> = []
     var query = ""
-    var issuesOnly = false
-    var gaps = false
-    var unshared = false
     var catalogView: CatalogMode = .list
+    var sortOrder: [KeyPathComparator<SkillGroup>] = [
+        KeyPathComparator(\.usage.sessionCount, order: .reverse),
+        KeyPathComparator(\.name, comparator: .localizedStandard),
+    ]
     var showInspector = true
     var appearance: AppearanceMode = .stored {
         didSet { applyAppearance() }
@@ -104,7 +106,7 @@ final class AppModel {
     var visibleGroups: [SkillGroup] {
         guard let inventory else { return [] }
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return inventory.groups.filter { group in
+        let filtered = inventory.groups.filter { group in
             switch filter {
             case .all:
                 if group.archivedOnly { return false }
@@ -112,22 +114,26 @@ final class AppModel {
                 if !group.inShared { return false }
             case .archived:
                 if !group.hasArchive { return false }
+            case .scope(let scope):
+                if group.archivedOnly { return false }
+                if !group.catalogScopes.contains(scope) { return false }
             case .harness(let id):
-                let visible = group.harnesses.contains(id)
-                if gaps {
-                    if visible { return false }
-                } else if !visible {
-                    return false
-                }
+                if !group.harnesses.contains(id) { return false }
             }
-            if unshared && group.inShared { return false }
-            if issuesOnly && group.issues.isEmpty { return false }
             if q.isEmpty { return true }
             let blob = ([group.name, group.description] + group.copies.map {
                 "\($0.homeRelative) \($0.location.label) \($0.location.pluginName ?? "") \($0.origin.label)"
             }).joined(separator: " ").lowercased()
             return blob.contains(q)
         }
+        if catalogView == .matrix {
+            return filtered.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
+        return filtered.sorted(using: sortOrder)
+    }
+
+    func scopeCount(_ scope: SkillScope) -> Int {
+        inventory?.groups.filter { !$0.archivedOnly && $0.catalogScopes.contains(scope) }.count ?? 0
     }
 
     var filterBlurb: String? {
@@ -139,12 +145,22 @@ final class AppModel {
             return "Archived skills live in ~/.config/skill-manager/archive. No harness loads them. Restore to put a copy back, or delete if you are done with it."
         case .harness(let id):
             guard let h = inventory.harnesses.first(where: { $0.id == id }) else { return nil }
-            if gaps {
-                return "\(h.shortName) cannot see \(h.missingNames.count) skills that exist in other locations. \(h.blurb)"
-            }
             return "\(h.shortName) can load \(h.uniqueNames.count) skills. \(h.blurb) Missing \(h.missingNames.count) that live only elsewhere."
         case .all:
             return nil
+        case .scope(let scope):
+            switch scope {
+            case .user:
+                return "User folders: ~/.claude/skills, ~/.cursor/skills, ~/.agents/skills, and the other harness user dirs."
+            case .project:
+                return "Team skills live in a repo: .claude/skills, .cursor/skills, .agents/skills, and friends."
+            case .plugin:
+                return "Skills that arrived with a Cursor or Claude plugin, under ~/.cursor/plugins or ~/.claude/plugins. The plugin cache owns them; they cannot be unlinked here."
+            case .builtin:
+                return "Skills Cursor ships itself in ~/.cursor/skills-cursor. Cursor updates them; they cannot be unlinked here."
+            default:
+                return nil
+            }
         }
     }
 

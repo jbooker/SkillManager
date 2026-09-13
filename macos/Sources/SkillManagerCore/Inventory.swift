@@ -3,7 +3,8 @@ import Foundation
 public enum InventoryBuilder {
     public static func build(_ options: ScanOptions) -> Inventory {
         let copies = SkillDiscovery.discoverSkills(options: options)
-        let groups = groupSkills(copies)
+        let usage = SkillUsageScanner.scan(homeDir: options.homeDir)
+        let groups = groupSkills(copies, usage: usage)
         let activeGroups = groups.filter { !$0.archivedOnly }
         let allNames = Set(activeGroups.map(\.name))
         let harnesses = Harnesses.all.map { def -> HarnessSummary in
@@ -49,7 +50,7 @@ public enum InventoryBuilder {
         )
     }
 
-    public static func groupSkills(_ copies: [SkillCopy]) -> [SkillGroup] {
+    public static func groupSkills(_ copies: [SkillCopy], usage: [String: SkillUsage] = [:]) -> [SkillGroup] {
         var byName: [String: [SkillCopy]] = [:]
         for copy in copies {
             byName[copy.name, default: []].append(copy)
@@ -79,7 +80,8 @@ public enum InventoryBuilder {
                     inShared: groupCopies.contains { $0.location.shared && $0.location.scope != .archived },
                     identical: hashes.count <= 1,
                     scopes: Array(scopes),
-                    issues: issues
+                    issues: issues,
+                    usage: usage[name] ?? .empty
                 )
             )
         }

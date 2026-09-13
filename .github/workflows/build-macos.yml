@@ -1,0 +1,63 @@
+name: Build macOS app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: macos-app-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Package Skill Manager
+    runs-on: macos-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test --package-path macos
+
+      - name: Package app
+        run: bash scripts/package-macos.sh --skip-tests
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Skill-Manager-macos
+          path: |
+            release/Skill-Manager-macos.zip
+            release/Skill-Manager-macos.dmg
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=macos-latest
+          {
+            echo "macOS build from [\`${GITHUB_SHA:0:7}\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})."
+            echo
+            echo "## Install"
+            echo
+            echo "1. Download **Skill-Manager-macos.dmg** (or the zip)."
+            echo "2. Open the disk image and drag **Skill Manager** into **Applications**."
+            echo "3. The first time you launch it, right-click the app and choose **Open**. Apple Gatekeeper warns because this build is not notarized."
+            echo
+            echo "Runs on Intel and Apple silicon, macOS 14 or later."
+          } > "$RUNNER_TEMP/release-notes.md"
+          gh release delete "$tag" --yes --cleanup-tag || true
+          gh release create "$tag" \
+            release/Skill-Manager-macos.dmg \
+            release/Skill-Manager-macos.zip \
+            --title "Skill Manager" \
+            --target "$GITHUB_SHA" \
+            --latest \
+            --notes-file "$RUNNER_TEMP/release-notes.md"

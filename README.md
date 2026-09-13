@@ -18,11 +18,11 @@ The problem it solves: skills are the same format everywhere, but each harness l
 
 Project copies of those folders (`.claude/skills`, `.agents/skills`, …) follow the same visibility map.
 
-**Available everywhere** creates symlinks in both `~/.agents/skills` and `~/.claude/skills`, which is the combination that covers every harness in this table.
+**Link everywhere** creates copies in both `~/.agents/skills` and `~/.claude/skills`, which is the combination that covers every harness in this table.
 
-**Unload** takes a skill out of one load path. A symlink is removed. The last real user folder is moved to `~/.config/skill-manager/archive/` instead of deleted, so you can restore it. **Mark inactive** leaves the folder in place and sets `disable-model-invocation` so models stop auto-loading it. **Delete** is permanent and asks first. Plugin caches and Cursor built-ins are never changed.
+**Link** puts a skill into one of those user folders. **Unlink** takes it out of that folder only. A symlink is removed. The last real user folder is moved to `~/.config/skill-manager/archive/` instead of deleted, so you can restore it. **Mark inactive** leaves the folder in place and sets `disable-model-invocation` so models stop auto-loading it. **Delete** is permanent and asks first. Plugin caches and Cursor built-ins are never changed.
 
-Cursor also loads plugin skills under `~/.cursor/plugins` and built-ins under `~/.cursor/skills-cursor`. Those stay tagged as plugin / built-in so they are not mixed up with skills you own.
+Cursor also loads plugin skills under `~/.cursor/plugins` and built-ins under `~/.cursor/skills-cursor`. **Built-in** means Cursor shipped the skill itself. **Plugin** means it arrived with a Cursor or Claude plugin package. Skill Manager will not unlink either of those copies. Link into a user folder only if you want a personal copy other harnesses can load.
 
 ## Refresh from origin
 
@@ -47,7 +47,20 @@ Pick the load target *before* loading:
 
 A library URL loads every skill in the repo. A tree URL that points at one skill loads just that folder. Nested example `SKILL.md` files inside a skill are not treated as extra skills. Names that already exist at the destination are skipped. Each new copy records the repo as its origin so **Refresh from source** works later.
 
-## Run
+## Download
+
+Every push to `main` publishes a macOS build on [GitHub Releases](https://github.com/jbooker/SkillsManager/releases/latest).
+
+- [Skill-Manager-macos.dmg](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-macos.dmg) — open it and drag **Skill Manager** into **Applications**
+- [Skill-Manager-macos.zip](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-macos.zip) — unzip, then drag the app into **Applications** if you want it to stay
+
+There is no separate installer. A Mac app is already a self-contained `.app` bundle; the disk image is just a convenient wrapper with an Applications shortcut.
+
+The first launch, right-click the app and choose **Open**. Gatekeeper warns because the build is ad-hoc signed, not Apple-notarized. After that, double-click works as usual.
+
+Requires macOS 14+ on Intel or Apple silicon.
+
+## Run from source
 
 Requires macOS 14+ and Xcode command line tools.
 
@@ -55,17 +68,15 @@ Requires macOS 14+ and Xcode command line tools.
 swift run --package-path macos SkillManager
 ```
 
-That launches **Skill Manager** as a native SwiftUI app: sidebar by harness, searchable table, coverage matrix, inspector with link / unload / archive / delete / refresh, **Load from GitHub** for libraries, and Settings for extra scan roots.
+That launches **Skill Manager** as a native SwiftUI app: sidebar by harness, searchable table, coverage matrix, inspector with link / unlink / archive / delete / refresh, **Load from GitHub** for libraries, and Settings for extra scan roots.
 
-To build a `.app` you can keep in `/Applications`:
+To build a `.app`, zip, and disk image locally:
 
 ```bash
 bash scripts/package-macos.sh
 ```
 
-The unsigned app lands at `release/Skill Manager.app`. Gatekeeper may ask you to open it via Right Click → Open the first time because it is not notarized.
-
-Open `macos/Package.swift` in Xcode if you want to run or iterate from there.
+Outputs land in `release/`. Open `macos/Package.swift` in Xcode if you want to run or iterate from there.
 
 ## Tests
 

@@ -11,7 +11,65 @@ public enum HarnessID: String, CaseIterable, Codable, Sendable, Identifiable {
     public var id: String { rawValue }
 }
 
-public enum SkillScope: String, Codable, Sendable {
+/// User-level folders the inspector can link into or unlink from.
+/// Coverage (who can *load* the skill) is separate: Cursor may already
+/// see a shared-global copy without a `~/.cursor/skills` entry.
+public enum UserFolderTarget: String, CaseIterable, Identifiable, Sendable, Hashable {
+    case shared
+    case claude
+    case cursor
+    case grok
+    case codex
+    case gemini
+    case opencode
+
+    public var id: String { rawValue }
+
+    public var locationId: String {
+        switch self {
+        case .shared: return "agents-user"
+        case .claude: return "claude-user"
+        case .cursor: return "cursor-user"
+        case .grok: return "grok-user"
+        case .codex: return "codex-user"
+        case .gemini: return "gemini-user"
+        case .opencode: return "opencode-user"
+        }
+    }
+
+    public var title: String {
+        switch self {
+        case .shared: return "Shared global"
+        case .claude: return "Claude"
+        case .cursor: return "Cursor"
+        case .grok: return "Grok"
+        case .codex: return "Codex"
+        case .gemini: return "Gemini"
+        case .opencode: return "OpenCode"
+        }
+    }
+
+    public var homeRel: String {
+        switch self {
+        case .shared: return "~/.agents/skills"
+        case .claude: return "~/.claude/skills"
+        case .cursor: return "~/.cursor/skills"
+        case .grok: return "~/.grok/skills"
+        case .codex: return "~/.codex/skills"
+        case .gemini: return "~/.gemini/skills"
+        case .opencode: return "~/.config/opencode/skills"
+        }
+    }
+
+    public var harness: HarnessID? {
+        switch self {
+        case .shared: return nil
+        default: return HarnessID(rawValue: rawValue)
+        }
+    }
+}
+
+public enum SkillScope: String, Codable, Sendable, Hashable, CaseIterable {
     case user
     case project
     case plugin
@@ -173,6 +231,63 @@ public struct SkillCopy: Sendable, Identifiable, Equatable {
     public var meta: SkillMeta
 }
 
+public struct SkillUsage: Sendable, Equatable {
+    public var sessionCount: Int
+    public var lastUsed: Date?
+    public var dates: [Date]
+
+    public static let empty = SkillUsage(sessionCount: 0, lastUsed: nil, dates: [])
+
+    public init(sessionCount: Int = 0, lastUsed: Date? = nil, dates: [Date] = []) {
+        self.sessionCount = sessionCount
+        self.lastUsed = lastUsed
+        self.dates = dates
+    }
+
+    public var lastUsedSort: Date { lastUsed ?? .distantPast }
+
+    /// One count per week, oldest first, covering `weeks` including the week of `now`.
+    public func weeklyCounts(weeks: Int = 26, now: Date = Date(), calendar: Calendar = SkillUsage.weekCalendar) -> [Int] {
+        let cells = heatmapCounts(weeks: weeks, now: now, calendar: calendar)
+        return (0..<weeks).map { week in
+            (0..<7).reduce(0) { $0 + cells[week * 7 + $1] }
+        }
+    }
+
+    /// Sunday-first grid: `weeks` columns × 7 day rows. Index is `week * 7 + weekdayOffset`.
+    public func heatmapCounts(weeks: Int = 26, now: Date = Date(), calendar: Calendar = SkillUsage.weekCalendar) -> [Int] {
+        guard weeks > 0 else { return [] }
+        let start = heatmapStart(weeks: weeks, now: now, calendar: calendar)
+        var cells = Array(repeating: 0, count: weeks * 7)
+        for date in dates {
+            let days = calendar.dateComponents([.day], from: start, to: calendar.startOfDay(for: date)).day ?? 0
+            if days >= 0 && days < weeks * 7 {
+                cells[days] += 1
+            }
+        }
+        return cells
+    }
+
+    public func sessions(inLastWeeks weeks: Int, now: Date = Date(), calendar: Calendar = SkillUsage.weekCalendar) -> Int {
+        weeklyCounts(weeks: weeks, now: now, calendar: calendar).reduce(0, +)
+    }
+
+    public static var weekCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 1
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    public func heatmapStart(weeks: Int, now: Date, calendar: Calendar) -> Date {
+        let today = calendar.startOfDay(for: now)
+        let weekday = calendar.component(.weekday, from: today)
+        let daysFromSunday = (weekday - calendar.firstWeekday + 7) % 7
+        let startOfThisWeek = calendar.date(byAdding: .day, value: -daysFromSunday, to: today) ?? today
+        return calendar.date(byAdding: .weekOfYear, value: -(weeks - 1), to: startOfThisWeek) ?? startOfThisWeek
+    }
+}
+
 public struct SkillGroup: Sendable, Identifiable, Equatable {
     public var id: String { name }
     public var name: String
@@ -183,10 +298,41 @@ public struct SkillGroup: Sendable, Identifiable, Equatable {
     public var identical: Bool
     public var scopes: [SkillScope]
     public var issues: [String]
+    public var usage: SkillUsage = .empty
 
     public var hasArchive: Bool { copies.contains { $0.location.scope == .archived } }
     public var archivedOnly: Bool { !copies.isEmpty && copies.allSatisfy { $0.location.scope == .archived } }
     public var activeCopies: [SkillCopy] { copies.filter { $0.location.scope != .archived } }
+    public var hasUserCopy: Bool { copies.contains { $0.location.scope == .user } }
+
+    /// Cursor built-in or plugin cache already covers this harness's own folder.
+    public func managedPresence(for target: UserFolderTarget) -> String? {
+        guard let harness = target.harness else { return nil }
+        let managed = activeCopies.filter { $0.location.scope == .plugin || $0.location.scope == .builtin }
+        guard managed.contains(where: { $0.location.harnesses.contains(harness) }) else { return nil }
+        if managed.contains(where: { $0.location.scope == .builtin && $0.location.harnesses.contains(harness) }) {
+            return "Built-in"
+        }
+        return "Plugin"
+    }
+
+    public var catalogScopes: [SkillScope] {
+        let active = Set(activeCopies.map(\.location.scope))
+        return Self.catalogScopeOrder.filter { active.contains($0) }
+    }
+
+    public var scopeSortKey: String {
+        catalogScopes.map(\.rawValue).joined(separator: ",")
+    }
+
+    public var invokeLabel: String {
+        let flags = Set((activeCopies.isEmpty ? copies : activeCopies).map(\.disableModelInvocation))
+        if flags.count > 1 { return "mixed" }
+        if flags.contains(true) { return "manual" }
+        return "auto"
+    }
+
+    public static let catalogScopeOrder: [SkillScope] = [.user, .project, .plugin, .builtin]
 }
 
 public struct HarnessSummary: Sendable, Identifiable {
