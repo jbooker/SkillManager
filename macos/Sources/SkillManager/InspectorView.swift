@@ -46,10 +46,13 @@ struct SkillDetail: View {
                     Text("SKILL.md")
                         .font(.headline)
                     if let copy = group.copies.first {
-                        Text(model.skillBody(for: copy))
-                            .font(.system(.caption, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        let body = model.skillBody(for: copy)
+                        if body.isEmpty {
+                            Text("No body.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            SkillMarkdownView(source: body)
+                        }
                     }
                 }
             }

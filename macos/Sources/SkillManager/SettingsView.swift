@@ -20,6 +20,9 @@ struct SettingsView: View {
 
                 Section {
                     LabeledContent("Version", value: AppInfo.displayVersion)
+                    Button("About Skill Manager…") {
+                        model.presentAbout()
+                    }
                 } header: {
                     Text("Skill Manager")
                 }

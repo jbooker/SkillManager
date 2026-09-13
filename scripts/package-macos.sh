@@ -62,6 +62,41 @@ cp "$root/macos/Info.plist" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build" "$app/Contents/Info.plist"
 printf 'APPL????' > "$app/Contents/PkgInfo"
 
+python3 - "$app/Contents/Resources/BuildManifest.json" "$version" "$build" "$root" <<'PY'
+import json, os, subprocess, sys
+from datetime import datetime, timezone
+
+path, version, build, root = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
+def git(*args):
+    try:
+        return subprocess.check_output(
+            ["git", "-C", root, *args],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return ""
+
+sha = os.environ.get("GITHUB_SHA") or git("rev-parse", "HEAD")
+commit = sha[:7] if sha else ""
+ref = os.environ.get("GITHUB_REF_NAME") or git("rev-parse", "--abbrev-ref", "HEAD")
+if ref in ("", "HEAD"):
+    ref = ""
+
+manifest = {
+    "version": version,
+    "build": str(build),
+    "commit": commit,
+    "ref": ref,
+    "builtAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+}
+manifest = {key: value for key, value in manifest.items() if value}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(manifest, handle, indent=2)
+    handle.write("\n")
+PY
+
 if [[ -f "$root/build/icon.png" ]]; then
   iconset="$root/build/SkillManager.iconset"
   rm -rf "$iconset"
