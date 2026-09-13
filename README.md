@@ -83,3 +83,11 @@ Outputs land in `release/`. Open `macos/Package.swift` in Xcode if you want to r
 ```bash
 swift test --package-path macos
 ```
+
+## Contributing
+
+Open a pull request against `main`. Anyone can propose a change; only repository owners can merge. Direct pushes to `main` are blocked.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
