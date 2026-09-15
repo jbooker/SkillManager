@@ -25,7 +25,7 @@ struct LoadLibrarySheet: View {
 
             Picker("Available to", selection: $model.libraryTarget) {
                 Text("All harnesses").tag(LoadTarget.everywhere)
-                ForEach(HarnessID.allCases) { id in
+                ForEach(model.installedHarnessIDs) { id in
                     Text(Harnesses.all.first { $0.id == id }?.name ?? id.rawValue)
                         .tag(LoadTarget.harness(id))
                 }
@@ -169,7 +169,7 @@ struct LoadLibrarySheet: View {
     private var targetBlurb: String {
         switch model.libraryTarget {
         case .everywhere:
-            return "Copies into ~/.agents/skills and links ~/.claude/skills, which is the pair that every harness in this app can see."
+            return "Copies into ~/.agents/skills and links ~/.claude/skills, which is the pair that every installed harness can see."
         case .harness(let id):
             let name = Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue
             let path: String

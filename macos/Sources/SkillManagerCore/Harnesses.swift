@@ -8,7 +8,12 @@ public enum Harnesses {
             shortName: "Claude",
             colorHex: "D97757",
             blurb: "Reads ~/.claude/skills and project .claude/skills. Does not read the shared ~/.agents/skills folder.",
-            readsSharedAgents: false
+            readsSharedAgents: false,
+            appBundleNames: ["Claude.app"],
+            bundleIdentifiers: ["com.anthropic.claudefordesktop", "com.anthropic.claude-code"],
+            binaryNames: ["claude"],
+            homeRelativeBinaries: [".local/bin/claude", ".claude/local/claude"],
+            appResourceBinaries: []
         ),
         HarnessDef(
             id: .cursor,
@@ -16,7 +21,12 @@ public enum Harnesses {
             shortName: "Cursor",
             colorHex: "7AA2FF",
             blurb: "Reads .cursor/skills, .agents/skills, plus Claude and Codex skill dirs. Also loads plugin and built-in skills.",
-            readsSharedAgents: true
+            readsSharedAgents: true,
+            appBundleNames: ["Cursor.app"],
+            bundleIdentifiers: ["com.todesktop.230313mzl4w4u92"],
+            binaryNames: ["cursor"],
+            homeRelativeBinaries: [],
+            appResourceBinaries: ["Contents/Resources/app/bin/cursor"]
         ),
         HarnessDef(
             id: .grok,
@@ -24,7 +34,12 @@ public enum Harnesses {
             shortName: "Grok",
             colorHex: "D4D4D8",
             blurb: "Reads .grok/skills, ~/.agents/skills, Claude-compatible skill dirs, and extra paths from ~/.grok/config.toml.",
-            readsSharedAgents: true
+            readsSharedAgents: true,
+            appBundleNames: [],
+            bundleIdentifiers: [],
+            binaryNames: ["grok"],
+            homeRelativeBinaries: [".grok/bin/grok", ".local/bin/grok"],
+            appResourceBinaries: []
         ),
         HarnessDef(
             id: .codex,
@@ -32,7 +47,12 @@ public enum Harnesses {
             shortName: "Codex",
             colorHex: "3ECF8E",
             blurb: "Reads .agents/skills in the repo (walked to root) and ~/.agents/skills. Also ~/.codex/skills.",
-            readsSharedAgents: true
+            readsSharedAgents: true,
+            appBundleNames: ["Codex.app"],
+            bundleIdentifiers: ["com.openai.codex"],
+            binaryNames: ["codex"],
+            homeRelativeBinaries: [".local/bin/codex", ".codex/packages/standalone/current/bin/codex"],
+            appResourceBinaries: ["Contents/Resources/codex"]
         ),
         HarnessDef(
             id: .gemini,
@@ -40,7 +60,12 @@ public enum Harnesses {
             shortName: "Gemini",
             colorHex: "6EA8FE",
             blurb: "Reads .gemini/skills and the ~/.agents/skills alias. Workspace .agents/skills wins over .gemini/skills.",
-            readsSharedAgents: true
+            readsSharedAgents: true,
+            appBundleNames: [],
+            bundleIdentifiers: [],
+            binaryNames: ["gemini"],
+            homeRelativeBinaries: [],
+            appResourceBinaries: []
         ),
         HarnessDef(
             id: .opencode,
@@ -48,7 +73,12 @@ public enum Harnesses {
             shortName: "OpenCode",
             colorHex: "EB7AA8",
             blurb: "Reads .opencode/skills, plus Claude and agents skill dirs at user and project level.",
-            readsSharedAgents: true
+            readsSharedAgents: true,
+            appBundleNames: ["OpenCode.app"],
+            bundleIdentifiers: [],
+            binaryNames: ["opencode"],
+            homeRelativeBinaries: [".opencode/bin/opencode"],
+            appResourceBinaries: []
         ),
     ]
 

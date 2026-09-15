@@ -95,7 +95,7 @@ struct SkillDetail: View {
                 SessionHeatmap(usage: group.usage)
                     .padding(.top, 4)
             }
-            CoverageGlyph(present: Set(group.harnesses), size: 10)
+            CoverageGlyph(present: Set(group.harnesses), ids: model.installedHarnessIDs, size: 10)
             HStack(spacing: 6) {
                 ForEach(group.catalogScopes, id: \.self) { scope in
                     ScopeBadge(scope: scope)
@@ -127,7 +127,7 @@ struct SkillDetail: View {
                         .foregroundStyle(.secondary)
                 }
                 if group.hasUserCopy {
-                    ForEach(HarnessID.allCases.filter { !group.harnesses.contains($0) }) { id in
+                    ForEach(model.installedHarnessIDs.filter { !group.harnesses.contains($0) }) { id in
                         Text("Hidden from \(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)")
                             .font(.caption)
                             .foregroundStyle(.orange)
@@ -154,7 +154,7 @@ struct SkillDetail: View {
                 .help("Symlink into ~/.agents/skills and ~/.claude/skills so every harness can load it")
             }
 
-            ForEach(UserFolderTarget.allCases) { target in
+            ForEach(UserFolderTarget.visible(installed: model.installedHarnessSet, existingLocationIDs: Set(group.copies.map(\.location.id)))) { target in
                 folderRow(target)
             }
         }
@@ -349,7 +349,7 @@ struct CopyCard: View {
                 .font(.subheadline.weight(.semibold))
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
                 row("Path", copy.homeRelative)
-                row("Loads in", copy.location.harnesses.map { id in
+                row("Loads in", copy.location.harnesses.filter { model.installedHarnessSet.contains($0) }.map { id in
                     Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue
                 }.joined(separator: ", ").nilIfEmpty ?? "—")
                 row("Scope", scopeLine)

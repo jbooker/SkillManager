@@ -67,6 +67,15 @@ public enum UserFolderTarget: String, CaseIterable, Identifiable, Sendable, Hash
         default: return HarnessID(rawValue: rawValue)
         }
     }
+
+    /// Shared global, plus each installed harness folder. Folders that already
+    /// have a copy stay visible so leftover installs can still be unlinked.
+    public static func visible(installed: Set<HarnessID>, existingLocationIDs: Set<String> = []) -> [UserFolderTarget] {
+        allCases.filter { target in
+            guard let harness = target.harness else { return true }
+            return installed.contains(harness) || existingLocationIDs.contains(target.locationId)
+        }
+    }
 }
 
 public enum SkillScope: String, Codable, Sendable, Hashable, CaseIterable {
@@ -85,6 +94,11 @@ public struct HarnessDef: Sendable, Identifiable {
     public var colorHex: String
     public var blurb: String
     public var readsSharedAgents: Bool
+    public var appBundleNames: [String]
+    public var bundleIdentifiers: [String]
+    public var binaryNames: [String]
+    public var homeRelativeBinaries: [String]
+    public var appResourceBinaries: [String]
 }
 
 public struct LocationRule: Sendable {
@@ -380,6 +394,8 @@ public struct ScanOptions: Sendable {
     public var includeBuiltins: Bool
     public var extraSkillDirs: [String]
     public var assignedOrigins: [String: AssignedOrigin]
+    /// `nil` means every known harness. The app passes the set detected on this Mac.
+    public var installedHarnesses: Set<HarnessID>?
 
     public init(
         homeDir: String,
@@ -387,7 +403,8 @@ public struct ScanOptions: Sendable {
         includePlugins: Bool = true,
         includeBuiltins: Bool = true,
         extraSkillDirs: [String] = [],
-        assignedOrigins: [String: AssignedOrigin] = [:]
+        assignedOrigins: [String: AssignedOrigin] = [:],
+        installedHarnesses: Set<HarnessID>? = nil
     ) {
         self.homeDir = homeDir
         self.scanRoots = scanRoots
@@ -395,6 +412,7 @@ public struct ScanOptions: Sendable {
         self.includeBuiltins = includeBuiltins
         self.extraSkillDirs = extraSkillDirs
         self.assignedOrigins = assignedOrigins
+        self.installedHarnesses = installedHarnesses
     }
 }
 

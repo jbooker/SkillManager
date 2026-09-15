@@ -99,6 +99,14 @@ final class AppModel {
 
     var homeDir: String { NSHomeDirectory() }
 
+    var installedHarnessIDs: [HarnessID] {
+        inventory?.harnesses.map(\.id) ?? []
+    }
+
+    var installedHarnessSet: Set<HarnessID> {
+        Set(installedHarnessIDs)
+    }
+
     var selectedGroup: SkillGroup? {
         guard let name = selectedSkills.first, let inventory else { return nil }
         return inventory.groups.first { $0.name == name }
@@ -141,7 +149,12 @@ final class AppModel {
         guard let inventory else { return nil }
         switch filter {
         case .shared:
-            return "Shared global is ~/.agents/skills (and project .agents/skills). Cursor, Grok, Codex, Gemini, and OpenCode load it. Claude Code does not."
+            let readers = inventory.harnesses.filter(\.readsSharedAgents).map(\.shortName)
+            let readerList = readers.isEmpty ? "Installed shared-global harnesses" : ListFormatter.localizedString(byJoining: readers)
+            let claudeNote = inventory.harnesses.contains(where: { $0.id == .claude })
+                ? " Claude Code does not."
+                : ""
+            return "Shared global is ~/.agents/skills (and project .agents/skills). \(readerList) load it.\(claudeNote)"
         case .archived:
             return "Archived skills live in ~/.config/skill-manager/archive. No harness loads them. Restore to put a copy back, or delete if you are done with it."
         case .harness(let id):
@@ -181,11 +194,15 @@ final class AppModel {
         isScanning = true
         statusText = "Scanning…"
         loadSettingsFromDisk()
-        let options = ConfigStore.resolve(
+        var options = ConfigStore.resolve(
             homeDir: homeDir,
             cwd: "",
             includePlugins: includePlugins,
             includeBuiltins: includeBuiltins
+        )
+        options.installedHarnesses = HarnessPresence.detectOnThisMac(
+            homeDir: homeDir,
+            extraApplicationPaths: applicationEvidencePaths()
         )
         let built = await Task.detached(priority: .userInitiated) {
             InventoryBuilder.build(options)
@@ -194,6 +211,9 @@ final class AppModel {
         originStatus = [:]
         if let name = selectedSkills.first, !built.groups.contains(where: { $0.name == name }) {
             selectedSkills = []
+        }
+        if case .harness(let id) = filter, !built.harnesses.contains(where: { $0.id == id }) {
+            filter = .all
         }
         let formatter = DateFormatter()
         formatter.timeStyle = .short
@@ -316,7 +336,7 @@ final class AppModel {
         libraryURL = ""
         libraryStatus = ""
         switch filter {
-        case .harness(let id):
+        case .harness(let id) where installedHarnessSet.contains(id):
             libraryTarget = .harness(id)
         default:
             libraryTarget = .everywhere
@@ -416,6 +436,12 @@ final class AppModel {
             await rescan()
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    private func applicationEvidencePaths() -> [String] {
+        Harnesses.all.flatMap(\.bundleIdentifiers).compactMap { id in
+            NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)?.path
         }
     }
 }

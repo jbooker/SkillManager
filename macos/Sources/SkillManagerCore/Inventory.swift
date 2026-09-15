@@ -7,7 +7,8 @@ public enum InventoryBuilder {
         let groups = groupSkills(copies, usage: usage)
         let activeGroups = groups.filter { !$0.archivedOnly }
         let allNames = Set(activeGroups.map(\.name))
-        let harnesses = Harnesses.all.map { def -> HarnessSummary in
+        let installed = options.installedHarnesses ?? Set(HarnessID.allCases)
+        let harnesses = Harnesses.all.filter { installed.contains($0.id) }.map { def -> HarnessSummary in
             let visible = activeGroups.filter { $0.harnesses.contains(def.id) }
             let uniqueNames = visible.map(\.name).sorted()
             let missingNames = allNames.subtracting(uniqueNames).sorted()
@@ -28,9 +29,13 @@ public enum InventoryBuilder {
             )
         }
 
-        let issues = collectIssues(groups)
+        let issues = collectIssues(groups, installed: installed)
         let sharedCount = activeGroups.filter(\.inShared).count
-        let fragmentedCount = activeGroups.filter { !$0.inShared || $0.harnesses.count < HarnessID.allCases.count }.count
+        let installedCount = installed.count
+        let fragmentedCount = activeGroups.filter { group in
+            let visible = group.harnesses.filter(installed.contains)
+            return !group.inShared || visible.count < installedCount
+        }.count
         let activeCopies = copies.filter { $0.location.scope != .archived }
 
         return Inventory(
@@ -120,7 +125,7 @@ public enum InventoryBuilder {
         return labels
     }
 
-    private static func collectIssues(_ groups: [SkillGroup]) -> [InventoryIssue] {
+    private static func collectIssues(_ groups: [SkillGroup], installed: Set<HarnessID>) -> [InventoryIssue] {
         var issues: [InventoryIssue] = []
         for group in groups {
             if group.issues.contains("divergent-copies") {
@@ -133,7 +138,9 @@ public enum InventoryBuilder {
                     )
                 )
             }
-            if !group.harnesses.contains(.claude) && group.copies.contains(where: { $0.location.shared && $0.location.scope != .archived }) {
+            if installed.contains(.claude)
+                && !group.harnesses.contains(.claude)
+                && group.copies.contains(where: { $0.location.shared && $0.location.scope != .archived }) {
                 issues.append(
                     InventoryIssue(
                         level: "info",
