@@ -51,7 +51,7 @@ A library URL loads every skill in the repo. A tree URL that points at one skill
 
 Every push to `main` publishes a versioned disk image on [GitHub Releases](https://github.com/jbooker/SkillsManager/releases/latest).
 
-[Skill-Manager-0.1.0.dmg](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-0.1.0.dmg) — open it and drag **Skill Manager** into **Applications**.
+[Skill-Manager-0.1.1.dmg](https://github.com/jbooker/SkillsManager/releases/latest/download/Skill-Manager-0.1.1.dmg) — open it and drag **Skill Manager** into **Applications**.
 
 There is no separate installer. A Mac app is already a self-contained `.app` bundle; the disk image is a wrapper with an Applications shortcut. The version comes from `VERSION` and is stamped into the app and the `.dmg` filename.
 

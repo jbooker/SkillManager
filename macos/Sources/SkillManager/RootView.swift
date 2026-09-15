@@ -232,7 +232,7 @@ struct SkillCatalogList: View {
                         Text("Skill")
                             .frame(maxWidth: .infinity, alignment: .leading)
                         matrixHeader("Shr")
-                        ForEach(Harnesses.all) { harness in
+                        ForEach(model.inventory?.harnesses ?? []) { harness in
                             matrixHeader(String(harness.shortName.prefix(3)))
                         }
                     }
@@ -267,7 +267,7 @@ struct SkillContextMenu: View {
                 model.confirmDeleteName = group.name
             }
         } else {
-            ForEach(UserFolderTarget.allCases) { target in
+            ForEach(UserFolderTarget.visible(installed: model.installedHarnessSet, existingLocationIDs: Set(group.copies.map(\.location.id)))) { target in
                 if let existing = group.copies.first(where: { $0.location.id == target.locationId }) {
                     Button("Unlink from \(target.title)") {
                         Task { await model.run { SkillActions.unloadCopy(targetPath: existing.skillDir, homeDir: model.homeDir) } }
@@ -300,6 +300,7 @@ struct SkillContextMenu: View {
 }
 
 struct MatrixRow: View {
+    @Environment(AppModel.self) private var model
     let group: SkillGroup
 
     var body: some View {
@@ -316,7 +317,7 @@ struct MatrixRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             MatrixCell(on: group.inShared)
                 .frame(width: 36)
-            ForEach(HarnessID.allCases) { id in
+            ForEach(model.installedHarnessIDs) { id in
                 MatrixCell(on: group.harnesses.contains(id))
                     .frame(width: 36)
             }

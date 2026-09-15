@@ -24,7 +24,7 @@ Run from this repo:
 swift run --package-path macos SkillManager
 ```
 
-The SwiftUI app has a sidebar by harness, a searchable table, a coverage matrix, and an inspector for link / unlink / archive / delete / refresh. **Load from GitHub** clones a library and copies selected skills into a harness folder. Settings adds extra scan roots.
+The SwiftUI app has a sidebar by harness, a searchable table, a coverage matrix, and an inspector for link / unlink / archive / delete / refresh. The sidebar, matrix, and load targets only list harnesses detected on this Mac (app bundle or CLI). **Load from GitHub** clones a library and copies selected skills into a harness folder. Settings adds extra scan roots.
 
 ## Visibility rules (do not invent others)
 

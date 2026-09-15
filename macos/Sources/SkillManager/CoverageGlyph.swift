@@ -3,18 +3,19 @@ import SkillManagerCore
 
 struct CoverageGlyph: View {
     let present: Set<HarnessID>
+    var ids: [HarnessID] = Array(HarnessID.allCases)
     var size: CGFloat = 8
 
     var body: some View {
         HStack(spacing: 3) {
-            ForEach(HarnessID.allCases) { id in
+            ForEach(ids) { id in
                 RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                     .fill(present.contains(id) ? Color(hex: Harnesses.all.first { $0.id == id }?.colorHex ?? "8E8E93") : Color.primary.opacity(0.18))
                     .frame(width: size, height: size)
                     .help(Harnesses.all.first { $0.id == id }?.shortName ?? id.rawValue)
             }
         }
-        .accessibilityLabel(HarnessID.allCases.filter { present.contains($0) }.map(\.rawValue).joined(separator: ", "))
+        .accessibilityLabel(ids.filter { present.contains($0) }.map(\.rawValue).joined(separator: ", "))
     }
 }
 
